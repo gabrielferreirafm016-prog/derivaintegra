@@ -75,7 +75,7 @@ Você pode carregar a biblioteca diretamente de um CDN como o jsDelivr.
 
     <script type="module">
         // Carrega a biblioteca do CDN (use @latest ou fixe uma versão)
-        import { derivar, integrar, StepsBuilder } from '[https://cdn.jsdelivr.net/npm/derivainteg@latest/derivaintegra.js](https://cdn.jsdelivr.net/npm/derivainteg@latest/derivaintegra.js)';
+        import { derivar, integrar, StepsBuilder } from '[https://cdn.jsdelivr.net/npm/derivaintegra@latest/derivaintegra.js](https://cdn.jsdelivr.net/npm/derivaintegra@latest/derivaintegra.js)';
 
         // --- Derivação ---
         const { derivadaStr } = derivar("5x^2 + ln(x)", "lagrange");
