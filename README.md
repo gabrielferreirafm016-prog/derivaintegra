@@ -9,7 +9,7 @@ Este projeto foi construído como um parser descendente recursivo e não possui 
 ## Instalação
 
 ```
-npm install derivainteg
+npm install derivaintegra
 
 ```
 
