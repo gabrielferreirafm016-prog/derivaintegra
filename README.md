@@ -2,7 +2,7 @@
 
 `derivaintegra` é uma biblioteca JavaScript pura para **derivação simbólica e integração** de equações matemáticas.
 
-Ela recebe uma expressão como string (ex: `"x^2 * sin(x)"`) e retorna a string do resultado (ex: `"2x \cdot \sin(x) + x^2 \cdot \cos(x)"`), juntamente com um construtor de passos (`StepsBuilder`) que gera um HTML da resolução passo a passo.
+Ela recebe uma expressão como string (ex: `"x^2 * sin(x)"`) e retorna a string do resultado (ex: `"-x^2 \cdot \cos(x) + 2x \cdot \sin(x) + 2 \cdot \cos(x)"`), juntamente com um construtor de passos (`StepsBuilder`) que gera um HTML da resolução passo a passo.
 
 Este projeto foi construído como um parser descendente recursivo e não possui dependências externas.
 
@@ -20,7 +20,7 @@ npm install derivaintegra
 O pacote é um ES Module.
 
 ```
-import { derivar, integrar, StepsBuilder, toKaTeX } from 'derivainteg';
+import { derivar, integrar, StepsBuilder, toKaTeX } from 'derivaintegra';
 
 // --- Exemplo de Derivação ---
 const expressaoD = "cos(x^2)";
@@ -38,21 +38,16 @@ const htmlPassosD = resultadoD.stepsBuilder.render();
 
 
 // --- Exemplo de Integração ---
-const expressaoI = "5x^2 + 1/x";
+const expressaoI = "x * sin(x)";
 
 const resultadoI = integrar(expressaoI);
 
 // A string da integral final (sem o "+ C")
 console.log(resultadoI.integralStr);
-// Saída: "\frac{5}{3}x^3 + \cdot \ln|x|"
+// Saída: "-x \cdot \cos(x) + \sin(x)"
 
 // HTML dos passos de integração (opcional)
 const htmlPassosI = resultadoI.stepsBuilder.render();
-// console.log(htmlPassosI);
-
-// --- Exemplo de Utilitário ---
-console.log(toKaTeX("sqrt(x^2 * 5)"));
-// Saída: "\sqrt(x^2 \cdot 5)"
 
 ```
 
@@ -74,34 +69,65 @@ Você pode carregar a biblioteca diretamente de um CDN como o jsDelivr.
     <div id="output"></div>
 
     <script type="module">
-        // Carrega a biblioteca do CDN (use @latest ou fixe uma versão)
-        import { derivar, integrar, StepsBuilder } from '[https://cdn.jsdelivr.net/npm/derivaintegra@latest/derivaintegra.js](https://cdn.jsdelivr.net/npm/derivaintegra@latest/derivaintegra.js)';
+        import { derivar, integrar } from '[https://cdn.jsdelivr.net/npm/derivaintegra@latest/derivaintegra.js](https://cdn.jsdelivr.net/npm/derivaintegra@latest/derivaintegra.js)';
 
-        // --- Derivação ---
-        const { derivadaStr } = derivar("5x^2 + ln(x)", "lagrange");
-        console.log("Derivada:", derivadaStr);
-        // Saída: "10x + (1 / (x))"
-
-        // --- Integração (com substituição u) ---
-        const { integralStr, stepsBuilder } = integrar("cos(x^2) * 2x");
-        console.log("Integral:", integralStr);
-        // Saída: "(\sin((x^2)))"
-
+        const { integralStr, stepsBuilder } = integrar("x^2 * exp(x)");
+        
         // Renderiza os passos da integral no HTML
         document.getElementById('output').innerHTML = stepsBuilder.render();
-        
-        /* Opcional: Se o KaTeX estiver carregado, você pode
-           pedir para ele renderizar a matemática na página.
-           
-           document.addEventListener('DOMContentLoaded', () => {
-               katex.renderMathInElement(document.body);
-           });
-        */
     </script>
 </body>
 </html>
 
 ```
+
+## Regras e Funcionalidades Suportadas
+
+### Derivação
+
+O motor de derivação suporta a **Regra da Cadeia** completa para funções aninhadas.
+
+-   **Regras Básicas**: Constante ($c \to 0$), Variável ($x \to 1$), Potência ($ax^n$).
+    
+-   **Aritmética**: Regras da Soma, Subtração, Produto e Quociente.
+    
+-   **Trigonometria**: $\sin(u)$, $\cos(u)$, $\tan(u)$.
+    
+-   **Transcendentais**: $\ln(u)$, $e^u$ (`exp(u)`), $\sqrt{u}$.
+    
+
+### Integração
+
+O motor de integração aplica heurísticas para identificar o método de resolução mais adequado:
+
+1.  **Integrais Imediatas**:
+    
+    -   Potência: $\int x^n dx$  
+        
+    -   Logarítmica: $\int \frac{1}{x} dx$  
+        
+    -   Exponencial: $\int e^x dx$  
+        
+    -   Trigonométrica: $\int \sin(x) dx$, $\int \cos(x) dx$  
+        
+2.  **Regra da Substituição (**$u$**-sub)**:
+    
+    -   Identifica automaticamente padrões da forma $\int f(g(x)) \cdot g'(x) dx$.
+        
+    -   Ex: $\int \cos(x^2) \cdot 2x dx$  
+        
+3.  **Integração por Partes (Recursiva)**:
+    
+    -   Resolve produtos de polinômios por funções transcendentais usando a regra LIATE.
+        
+    -   Suporta recursão para polinômios de grau superior.
+        
+    -   Ex: $\int x^2 \cdot \sin(x) dx$, $\int x \cdot e^x dx$.
+        
+4.  **Álgebra**:
+    
+    -   Distribuição de constantes e simplificação de sinais nos resultados finais.
+        
 
 ## API (Funções Exportadas)
 
@@ -118,29 +144,29 @@ Calcula a derivada da expressão.
 
 #### `integrar(expr: string)`
 
-Calcula a integral (indefinida) da expressão. Tenta aplicar a Regra da Potência, integrais imediatas e a Regra da Substituição (u-sub).
+Calcula a integral (indefinida) da expressão.
 
--   `expr`: A expressão a ser integrada (ex: `"6x + cos(x)"`).
+-   `expr`: A expressão a ser integrada (ex: `"x * cos(x)"`).
     
 -   **Retorna**: `{ integralStr: string, stepsBuilder: StepsBuilder }`
     
-    -   _Nota: `integralStr` é a antiderivada e não inclui o `+ C`._
+    -   _Nota: `integralStr` é a antiderivada simplificada._
         
 
 #### `toKaTeX(expr: string)`
 
-Uma função utilitária que converte uma expressão de entrada (ex: `sin(x) * 2`) para uma string formatada para KaTeX/LaTeX (ex: `\sin(x) \cdot 2`).
+Converte uma expressão linear para o formato LaTeX, otimizado para o KaTeX.
 
--   `expr`: A expressão de entrada.
-    
--   **Retorna**: `string` formatada para KaTeX.
+-   **Retorna**: `string` formatada (ex: `sin(x) * 2` $\to$ `\sin(x) \cdot 2`).
     
 
 #### `StepsBuilder`
 
-Uma classe que armazena os passos da resolução.
+Classe utilitária que armazena a árvore de resolução.
 
--   **Método `.render()`**: Retorna uma string HTML (`<div class="step">...</div>`) que descreve a resolução completa, pronta para ser injetada no DOM.
+-   **Método `.render()`**: Retorna HTML (`<div class="step">...</div>`).
+    
+-   **Método `.printToConsole()`**: Imprime a árvore de passos colorida no console do navegador para depuração.
     
 
 ## Licença
