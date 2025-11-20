@@ -1,9 +1,10 @@
 /**
  * Derivaintegra - Biblioteca de Cálculo Simbólico (Derivada e Integral)
  * Versão extraída do Prototipador v1.13
+ * Convertida para ES Modules
  */
 
-class StepsBuilder {
+export class StepsBuilder {
     constructor() {
         this.steps = [];
         this.isIntegral = false; 
@@ -55,7 +56,7 @@ function wrapIfNeeded(term) {
     return term;
 }
 
-function toKaTeX(str) { 
+export function toKaTeX(str) { 
     if (!str) return "";
     let katexStr = str.replace(/\s+/g, ' '); 
     katexStr = katexStr.replace(/\b(sin|cos|tan|ln|sqrt)\(/g, "\\$1(");
@@ -177,7 +178,7 @@ function extrairCoeficiente(termo) {
 
 // --- MOTOR DE DERIVAÇÃO ---
 
-function derivar(expr, notation) {
+export function derivar(expr, notation) {
     const stepsBuilder = new StepsBuilder();
     let d_final = "";
     let expr_str_limpa = expr.replace(/\s+/g, '');
@@ -327,7 +328,7 @@ function derivarFator(expr, parentSteps, notation) {
 
 // --- MOTOR DE INTEGRAÇÃO ---
 
-function integrar(expr) {
+export function integrar(expr) {
     let exprLimpa = expr.replace(/\s+/g, '');
     let termos = []; let operadores = ['+']; let parenCount = 0; let start = 0;
     for (let i = 0; i < exprLimpa.length; i++) {
@@ -665,9 +666,3 @@ function analisarEIntegrarTermo(termo, parentSteps) {
             return { integralStr: `[Erro: ${termo}]` }; 
     }
 }
-
-module.exports = {
-    derivar,
-    integrar,
-    StepsBuilder
-};
