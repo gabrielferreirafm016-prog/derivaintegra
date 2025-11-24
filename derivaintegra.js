@@ -1,6 +1,6 @@
 /**
  * Derivaintegra - Biblioteca de Cálculo Simbólico (Derivada e Integral)
- * Versão atualizada: v1.15 (Regra da Potência Geral)
+ * Versão: ES Module (Moderno)
  */
 
 class StepsBuilder {
@@ -17,11 +17,9 @@ class StepsBuilder {
         this.steps.push({ title, nestedBuilder }); 
     }
     
-    // Renderiza para HTML simples (pode ser sobrescrito pelo consumidor da lib)
     render() {
         if (this.steps.length === 0) return "Nenhum passo gerado.";
         return this.steps.map((step, index) => {
-            // Nota: Classes CSS devem ser tratadas no frontend
             let html = `<div class="step">`;
             html += `<div class="step-title">${index + 1}. ${step.title}</div>`;
             if (step.nestedBuilder) {
@@ -66,21 +64,14 @@ function toKaTeX(str) {
         return `e^{(${content})}`;
     });
     katexStr = katexStr.replace(/e\^\(([^)]+)\)/g, "e^{$1}");
-
-    // Ocultar sinais de multiplicação (*)
-    // 1. Preservar apenas entre números (ex: 2 * 3 vira 2 \cdot 3)
     katexStr = katexStr.replace(/(\d)\s*\*\s*(\d)/g, '$1 \\cdot $2');
-    
-    // 2. Substituir todos os outros * por espaço (multiplicação implícita)
     katexStr = katexStr.replace(/\s*\*\s*/g, " "); 
-    
     return katexStr;
 }
 
 function simplifyExpression(expr) {
     let simplified = expr;
     let lastExpr;
-    
     do {
         lastExpr = simplified;
         simplified = simplified.replace(/\(\(([^()]+)\)\)/g, '($1)');
@@ -115,7 +106,6 @@ function splitTopLevel(str) {
         let char = str[i];
         if (char === '(') depth++;
         if (char === ')') depth--;
-        
         if (depth === 0 && (char === '+' || char === '-')) {
             if (current.trim()) parts.push(current.trim());
             parts.push(char); 
@@ -138,21 +128,12 @@ function distribuirProduto(coef, expr) {
         }
         if(ok) inner = inner.substring(1, inner.length-1);
     }
-
     let parts = splitTopLevel(inner);
     let result = "";
-    
-    if (parts.length === 1) {
-            return `${coef} * ${parts[0]}`;
-    }
-
+    if (parts.length === 1) { return `${coef} * ${parts[0]}`; }
     for (let i = 0; i < parts.length; i++) {
         let p = parts[i];
-        if (p === '+' || p === '-') {
-            result += ` ${p} `;
-        } else {
-            result += `${coef} * ${p}`;
-        }
+        if (p === '+' || p === '-') { result += ` ${p} `; } else { result += `${coef} * ${p}`; }
     }
     return result;
 }
@@ -160,17 +141,14 @@ function distribuirProduto(coef, expr) {
 function extrairCoeficiente(termo) {
     let t = termo.replace(/\s+/g, '');
     if (t.startsWith('(') && t.endsWith(')')) t = t.substring(1, t.length-1);
-    
-    let coef = 1;
-    let resto = t;
+    let coef = 1; let resto = t;
     const matchNum = t.match(/^(-?[\d\.]+)(\*)?/);
     if (matchNum) {
         coef = parseFloat(matchNum[1]);
         resto = t.substring(matchNum[0].length);
         if (resto === '') resto = '1';
     } else if (t.startsWith('-')) {
-        coef = -1;
-        resto = t.substring(1);
+        coef = -1; resto = t.substring(1);
     }
     return { coef, resto };
 }
@@ -295,15 +273,10 @@ function derivarFator(expr, parentSteps, notation) {
             return { derivadaStr: `(${innerResult.derivadaStr})`, stepsBuilder: parentSteps };
         }
     }
-
-    // --- NOVA REGRA DE CADEIA PARA POTÊNCIAS (u^n) ---
-    // Detecta coisas como sin(x)^2 ou (x+1)^2 que não cairam no ax^n
     match = expr.match(/^(.+)\^([\d\.-]+)$/);
     if (match) {
         const u = match[1];
         const n = parseFloat(match[2]);
-        
-        // Validar u simples (verificar balanceamento de parênteses)
         let parenCount = 0;
         let unbalanced = false;
         for(let char of u) {
@@ -313,21 +286,16 @@ function derivarFator(expr, parentSteps, notation) {
         }
         if(!unbalanced && parenCount === 0) {
             const nestedSteps = new StepsBuilder();
-            // Tentamos derivar a base u
             const uResult = derivarFator(u, nestedSteps, notation);
-            
             if (!uResult.derivadaStr.startsWith('[Erro')) {
                 const novo_n = n - 1;
                 let u_pow_str = "";
                 const u_latex = toKaTeX(u);
                 const du_latex = toKaTeX(uResult.derivadaStr);
-                
                 if (novo_n === 1) u_pow_str = wrapIfNeeded(u);
                 else if (novo_n === 0) u_pow_str = "1";
                 else u_pow_str = `(${u})^${novo_n}`;
-                
                 let d_final = `${n} * ${u_pow_str} * (${uResult.derivadaStr})`;
-                
                 parentSteps.addStep(
                     "Regra da Cadeia (Potência)", 
                     "Aplicando $(u^n)' = n \\cdot u^{n-1} \\cdot u'$", 
@@ -711,7 +679,8 @@ function analisarEIntegrarTermo(termo, parentSteps) {
     }
 }
 
-module.exports = {
+// --- EXPORTAÇÃO ES MODULE ---
+export {
     derivar,
     integrar,
     StepsBuilder
