@@ -1,10 +1,9 @@
 /**
  * Derivaintegra - Biblioteca de Cálculo Simbólico (Derivada e Integral)
- * Versão extraída do Prototipador v1.13
- * Convertida para ES Modules
+ * Versão atualizada: v1.15 (Regra da Potência Geral)
  */
 
-export class StepsBuilder {
+class StepsBuilder {
     constructor() {
         this.steps = [];
         this.isIntegral = false; 
@@ -56,7 +55,7 @@ function wrapIfNeeded(term) {
     return term;
 }
 
-export function toKaTeX(str) { 
+function toKaTeX(str) { 
     if (!str) return "";
     let katexStr = str.replace(/\s+/g, ' '); 
     katexStr = katexStr.replace(/\b(sin|cos|tan|ln|sqrt)\(/g, "\\$1(");
@@ -178,7 +177,7 @@ function extrairCoeficiente(termo) {
 
 // --- MOTOR DE DERIVAÇÃO ---
 
-export function derivar(expr, notation) {
+function derivar(expr, notation) {
     const stepsBuilder = new StepsBuilder();
     let d_final = "";
     let expr_str_limpa = expr.replace(/\s+/g, '');
@@ -296,6 +295,51 @@ function derivarFator(expr, parentSteps, notation) {
             return { derivadaStr: `(${innerResult.derivadaStr})`, stepsBuilder: parentSteps };
         }
     }
+
+    // --- NOVA REGRA DE CADEIA PARA POTÊNCIAS (u^n) ---
+    // Detecta coisas como sin(x)^2 ou (x+1)^2 que não cairam no ax^n
+    match = expr.match(/^(.+)\^([\d\.-]+)$/);
+    if (match) {
+        const u = match[1];
+        const n = parseFloat(match[2]);
+        
+        // Validar u simples (verificar balanceamento de parênteses)
+        let parenCount = 0;
+        let unbalanced = false;
+        for(let char of u) {
+            if(char === '(') parenCount++;
+            if(char === ')') parenCount--;
+            if(parenCount < 0) { unbalanced = true; break; }
+        }
+        if(!unbalanced && parenCount === 0) {
+            const nestedSteps = new StepsBuilder();
+            // Tentamos derivar a base u
+            const uResult = derivarFator(u, nestedSteps, notation);
+            
+            if (!uResult.derivadaStr.startsWith('[Erro')) {
+                const novo_n = n - 1;
+                let u_pow_str = "";
+                const u_latex = toKaTeX(u);
+                const du_latex = toKaTeX(uResult.derivadaStr);
+                
+                if (novo_n === 1) u_pow_str = wrapIfNeeded(u);
+                else if (novo_n === 0) u_pow_str = "1";
+                else u_pow_str = `(${u})^${novo_n}`;
+                
+                let d_final = `${n} * ${u_pow_str} * (${uResult.derivadaStr})`;
+                
+                parentSteps.addStep(
+                    "Regra da Cadeia (Potência)", 
+                    "Aplicando $(u^n)' = n \\cdot u^{n-1} \\cdot u'$", 
+                    `u = ${u_latex}, \\quad n = ${n}`, 
+                    `f' = ${n} \\cdot (${u_latex})^{${novo_n}} \\cdot (${du_latex})`
+                );
+                parentSteps.addNestedSteps(`Derivada da base $u$:`, uResult.stepsBuilder);
+                return { derivadaStr: d_final, stepsBuilder: parentSteps };
+            }
+        }
+    }
+
     match = expr.match(/^(sin|cos|tan|ln|exp|sqrt)\((.+)\)$/);
     if (match) {
         const func = match[1]; const innerExpr = match[2];
@@ -328,7 +372,7 @@ function derivarFator(expr, parentSteps, notation) {
 
 // --- MOTOR DE INTEGRAÇÃO ---
 
-export function integrar(expr) {
+function integrar(expr) {
     let exprLimpa = expr.replace(/\s+/g, '');
     let termos = []; let operadores = ['+']; let parenCount = 0; let start = 0;
     for (let i = 0; i < exprLimpa.length; i++) {
@@ -666,3 +710,9 @@ function analisarEIntegrarTermo(termo, parentSteps) {
             return { integralStr: `[Erro: ${termo}]` }; 
     }
 }
+
+module.exports = {
+    derivar,
+    integrar,
+    StepsBuilder
+};
