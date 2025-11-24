@@ -10,7 +10,7 @@ Este projeto foi construído como um parser descendente recursivo e **não possu
 
 ### Uso Local (Sem NPM)
 
-Basta baixar o arquivo `derivaintegra_esm.js` e colocá-lo no seu projeto.
+Basta baixar o arquivo `derivaintegra.js` e colocá-lo no seu projeto.
 
 ### Uso via NPM
 
@@ -27,7 +27,7 @@ npm install derivaintegra
 
 ```
 // Importe diretamente do arquivo
-import { derivar, integrar, StepsBuilder } from './derivaintegra_esm.js';
+import { derivar, integrar, StepsBuilder } from './derivaintegra.js';
 
 // --- Exemplo de Derivação ---
 const expressaoD = "cos(x^2)";
@@ -62,7 +62,7 @@ Para usar no navegador sem bundlers (Webpack/Vite), utilize a tag `type="module"
 
     <!-- Importante: type="module" -->
     <script type="module">
-        import { integrar } from './derivaintegra_esm.js';
+        import { integrar } from './derivaintegra.js';
 
         const { integralStr, stepsBuilder } = integrar("x^2 * exp(x)");
         
