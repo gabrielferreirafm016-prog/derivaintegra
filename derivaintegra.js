@@ -1,6 +1,6 @@
 /**
  * Derivaintegra - Biblioteca de Cálculo Simbólico (Derivada e Integral)
- * Versão: ES Module (Moderno)
+ * Versão: 2.1.1 (Correção de Simplificação e Constantes)
  */
 
 class StepsBuilder {
@@ -64,6 +64,7 @@ function toKaTeX(str) {
         return `e^{(${content})}`;
     });
     katexStr = katexStr.replace(/e\^\(([^)]+)\)/g, "e^{$1}");
+    // Remove asteriscos entre números e variáveis/funções para visual limpo
     katexStr = katexStr.replace(/(\d)\s*\*\s*(\d)/g, '$1 \\cdot $2');
     katexStr = katexStr.replace(/\s*\*\s*/g, " "); 
     return katexStr;
@@ -72,29 +73,61 @@ function toKaTeX(str) {
 function simplifyExpression(expr) {
     let simplified = expr;
     let lastExpr;
+    
     do {
         lastExpr = simplified;
+        simplified = simplified.replace(/\s+/g, ''); // Remove espaços para análise precisa
+        
+        // 1. Limpeza básica de parênteses duplos e redundantes
         simplified = simplified.replace(/\(\(([^()]+)\)\)/g, '($1)');
-        simplified = simplified.replace(/(?<!\\?(?:sin|cos|tan|sqrt|ln|exp))\(([^()]+)\)/g, (match, content) => { if (content.match(/^-?([\d\.]*x(\^[\d\.-]+)?|[\d\.]+)$/)) { return content; } return match; });
-        simplified = simplified.replace(/([^*\/+\-\s])\s*\*\s*\((-[^()]+)\)/g, '- $1 * $2');
-        simplified = simplified.replace(/\((-[^()]+)\)\s*\*\s*([^*\/+\-\s])/g, '- $1 * $2');
+        
+        // 2. Multiplicação por 0 (Esquerda e Direita)
+        // Cobre casos como "sin(x)*0", "0*cos(x)", "(...) * 0"
+        simplified = simplified.replace(/(\w+\([^)]+\)|[a-z0-9^]+|\([^)]+\))\*0(?![.0-9])/gi, '0');
+        simplified = simplified.replace(/(^|[^.0-9])0\*(\w+\([^)]+\)|[a-z0-9^]+|\([^)]+\))/gi, '$10');
+
+        // 3. Adição/Subtração de 0
+        simplified = simplified.replace(/\+0(?![.0-9])/g, '');
+        simplified = simplified.replace(/-0(?![.0-9])/g, '');
+        simplified = simplified.replace(/^0\+/g, '');
+        
+        // 4. Multiplicação por 1
+        simplified = simplified.replace(/\*1(?![.0-9])/g, '');
+        simplified = simplified.replace(/(^|[^.0-9])1\*/g, '$1');
+
+        // 5. Agrupamento de Coeficientes (Ajuste Solicitado)
+        // Caso: 2 * 2x -> 4x
+        simplified = simplified.replace(/(\d+)\*(\d+)x/g, (m, n1, n2) => (parseFloat(n1)*parseFloat(n2)) + 'x');
+        // Caso: 2x * 2 -> 4x
+        simplified = simplified.replace(/(\d+)x\*(\d+)/g, (m, n1, n2) => (parseFloat(n1)*parseFloat(n2)) + 'x');
+        // Caso: (2x) * 2 -> 4x (com parenteses)
+        simplified = simplified.replace(/\((\d+)x\)\*(\d+)/g, (m, n1, n2) => (parseFloat(n1)*parseFloat(n2)) + 'x');
+        simplified = simplified.replace(/(\d+)\*\((\d+)x\)/g, (m, n1, n2) => (parseFloat(n1)*parseFloat(n2)) + 'x');
+        
+        // 6. Sinais
         simplified = simplified.replace(/\+\s*-\s*/g, '- ');
         simplified = simplified.replace(/-\s*-\s*/g, '+ ');
-        simplified = simplified.replace(/([^\s()]*|\([^)]+\))\s*\*\s*0/g, '0');
-        simplified = simplified.replace(/0\s*\*\s*([^\s()]*|\([^)]+\))/g, '0');
-        simplified = simplified.replace(/\+\s*0/g, '');
-        simplified = simplified.replace(/0\s*\+/g, '');
-        simplified = simplified.replace(/-\s*\((.+?)\s*\+\s*(.+?)\)/g, '- $1 - $2');
-        simplified = simplified.replace(/-\s*\((.+?)\s*-\s*(.+?)\)/g, '- $1 + $2');
-        simplified = simplified.replace(/-\s*\(([^\(\)]+)\)/g, (match, content) => { if (content.match(/^(\\?(sin|cos|tan|sqrt)|ln|exp)\(.*\)$/)) { return `- ${content}`; } if (!content.includes('+') && !content.includes('-') && !content.includes('*') && !content.includes('/')) { return `- ${content}`; } return match; });
-        simplified = simplified.replace(/\s+/g, ' ').trim();
+        
     } while (simplified !== lastExpr);
     
+    // Limpeza final de parênteses externos
     if (simplified.startsWith('(') && simplified.endsWith(')')) {
         let parenCount = 0; let valid = true;
-        for (let i = 0; i < simplified.length - 1; i++) { if (simplified[i] === '(') parenCount++; if (simplified[i] === ')') parenCount--; if (parenCount === 0) { valid = false; break; } }
+        for (let i = 0; i < simplified.length - 1; i++) { 
+            if (simplified[i] === '(') parenCount++; 
+            if (simplified[i] === ')') parenCount--; 
+            if (parenCount === 0) { valid = false; break; } 
+        }
         if (valid) { simplified = simplified.substring(1, simplified.length - 1); }
     }
+
+    // Formatação estética final (Espaços ao redor de operadores)
+    simplified = simplified.replace(/\*/g, ' * ').replace(/\+/g, ' + ').replace(/-/g, ' - ');
+    // Remove espaços extras criados
+    simplified = simplified.replace(/\s\s+/g, ' ').trim();
+    // Corrige notação 4x (remove o * entre numero e var para ficar bonito)
+    simplified = simplified.replace(/(\d) \* ([a-zA-Z])/g, '$1$2');
+
     return simplified;
 }
 
@@ -215,13 +248,35 @@ function derivarTermo(expr, parentSteps, notation) {
             const u_wrapped = wrapIfNeeded(u); const v_wrapped = wrapIfNeeded(toKaTeX(v));
             const du_wrapped = wrapIfNeeded(du_str); const dv_wrapped = wrapIfNeeded(dv_str);
             let d_final = ''; let formula = ''; let calculo = ''; let u_deriv_str, v_deriv_str;
+            
             if (op === '*' || op === '.') {
-                d_final = `(${du_wrapped} * ${v_wrapped} + ${u_wrapped} * ${dv_wrapped})`;
-                if (notation === 'leibniz') { formula = `\\frac{d}{dx}(u \\cdot v) = \\frac{d}{dx}(u)v + u\\frac{d}{dx}(v)`; u_deriv_str = `... = ${du_str}`; v_deriv_str = `... = ${dv_str}`; }
-                else { formula = `(u \\cdot v)' = u'v + uv'`; u_deriv_str = `u' = ${du_str}`; v_deriv_str = `v' = ${dv_str}`; }
-                calculo = `u = ${u}, v = ${v} \\\\ ${u_deriv_str}, ${v_deriv_str} \\\\ \\text{Res} = ${du_wrapped} \\cdot ${v_wrapped} + ${u_wrapped} \\cdot ${dv_wrapped}`;
+                // --- OTIMIZAÇÃO: Verifica zeros antes de montar a string final ---
+                const u_is_zero = (du_str === "0");
+                const v_is_zero = (dv_str === "0");
+
+                if (u_is_zero && v_is_zero) {
+                    d_final = "0";
+                    calculo = `\\text{Ambos constantes} \\Rightarrow 0`;
+                } else if (u_is_zero) {
+                    // u é constante (du=0), sobrou u * dv
+                    d_final = `${u_wrapped} * ${dv_wrapped}`;
+                    calculo = `u' = 0, v' = ${dv_str} \\\\ \\text{Res} = ${u_wrapped} \\cdot ${dv_wrapped}`;
+                } else if (v_is_zero) {
+                    // v é constante (dv=0), sobrou du * v
+                    d_final = `${du_wrapped} * ${v_wrapped}`;
+                    calculo = `u' = ${du_str}, v' = 0 \\\\ \\text{Res} = ${du_wrapped} \\cdot ${v_wrapped}`;
+                } else {
+                    // Caso padrão
+                    d_final = `(${du_wrapped} * ${v_wrapped} + ${u_wrapped} * ${dv_wrapped})`;
+                    calculo = `u = ${u}, v = ${v} \\\\ u'=${du_str}, v'=${dv_str} \\\\ \\text{Res} = ${du_wrapped} \\cdot ${v_wrapped} + ${u_wrapped} \\cdot ${dv_wrapped}`;
+                }
+
+                if (notation === 'leibniz') { formula = `\\frac{d}{dx}(u \\cdot v) = \\frac{d}{dx}(u)v + u\\frac{d}{dx}(v)`; }
+                else { formula = `(u \\cdot v)' = u'v + uv'`; }
+                
                 parentSteps.addStep("Regra do Produto", "Aplicando a regra do produto.", formula, calculo);
             } else {
+                // Regra do quociente
                 d_final = `((${du_wrapped} * ${v_wrapped} - ${u_wrapped} * ${dv_wrapped}) / (${v_wrapped})^2)`;
                 if (notation === 'leibniz') { formula = `\\frac{d}{dx}(\\frac{u}{v}) = \\frac{\\frac{d}{dx}(u)v - u\\frac{d}{dx}(v)}{v^2}`; u_deriv_str = `... = ${du_str}`; v_deriv_str = `... = ${dv_str}`; }
                 else { formula = `(\\frac{u}{v})' = \\frac{u'v - uv'}{v^2}`; u_deriv_str = `u' = ${du_str}`; v_deriv_str = `v' = ${dv_str}`; }
