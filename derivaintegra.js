@@ -1,7 +1,9 @@
 /**
  * Derivaintegra - Biblioteca de Cálculo Simbólico (Derivada e Integral)
- * Versão: 2.1.1 (Correção de Simplificação e Constantes)
+ * Versão: 2.1.2 (Correção de Simplificação e Constantes)
  */
+
+const VERSION = "2.1.2";
 
 class StepsBuilder {
     constructor() {
@@ -738,5 +740,6 @@ function analisarEIntegrarTermo(termo, parentSteps) {
 export {
     derivar,
     integrar,
-    StepsBuilder
+    StepsBuilder,
+    VERSION // Exportando a versão
 };

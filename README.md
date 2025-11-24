@@ -1,6 +1,6 @@
 ﻿# Derivaintegra (ES Module)
 
-`derivaintegra` é uma biblioteca JavaScript pura para **derivação simbólica e integração** de equações matemáticas, agora otimizada como **ES Module (ESM)** moderno.
+`derivaintegra` é uma biblioteca JavaScript pura para **derivação simbólica e integração** de equações matemáticas, otimizada como **ES Module (ESM)** moderno.
 
 Ela recebe uma expressão como string (ex: `"x^2 * sin(x)"`) e retorna a string do resultado, juntamente com um construtor de passos (`StepsBuilder`) que gera um HTML da resolução passo a passo.
 
@@ -62,6 +62,7 @@ Para usar no navegador sem bundlers (Webpack/Vite), utilize a tag `type="module"
 
     <!-- Importante: type="module" -->
     <script type="module">
+        // Importação local ou via CDN (ex: esm.sh ou jsdelivr)
         import { integrar } from './derivaintegra.js';
 
         const { integralStr, stepsBuilder } = integrar("x^2 * exp(x)");
@@ -149,6 +150,10 @@ Classe utilitária que armazena a árvore de resolução.
 
 -   **Método `.render()`**: Retorna uma string HTML (`<div class="step">...</div>`) pronta para ser inserida na página.
     
+
+#### `VERSION`
+
+Constante contendo a versão atual da biblioteca (ex: `"2.1.0"`).
 
 ## Licença
 
