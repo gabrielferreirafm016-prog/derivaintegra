@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Derivaintegra - Prototipador</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- KaTeX CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+    
+    <!-- KaTeX JS -->
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
+
+    <!-- Fontes e Ícones -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        
+        /* Estilos para os passos gerados pela biblioteca */
+        .step {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+        }
+        .step:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .step-title {
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 8px;
+            font-size: 1.05rem;
+            display: flex;
+            align-items: center;
+        }
+        .step-title.integral { color: #059669; } /* Verde para integral */
+        .step-title.error { color: #dc2626; } /* Vermelho para erro */
+        
+        .step ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        .step li {
+            margin-bottom: 8px;
+            color: #475569;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+        .step li strong {
+            color: #334155;
+            font-weight: 600;
+        }
+        
+        /* Ajustes do KaTeX dentro dos passos */
+        .katex { font-size: 1.1em; }
+        
+        /* Correção para evitar quebras de linha feias em fórmulas inline */
+        .step li .katex-html {
+            white-space: normal; /* Permite quebra se necessário */
+        }
+        /* Tenta manter partes bases juntas */
+        .step li .base {
+            white-space: nowrap;
+        }
+        /* Se o conteúdo for muito largo, permite scroll horizontal no container do cálculo */
+        .step-math-block {
+            overflow-x: auto;
+            max-width: 100%;
+            display: inline-block;
+            vertical-align: top;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-slate-900 text-white py-6 shadow-lg">
+        <div class="container mx-auto px-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <i data-lucide="function-square" class="w-8 h-8 text-blue-400"></i>
+                <h1 class="text-2xl font-bold tracking-tight">Derivaintegra <span class="text-slate-400 text-sm font-normal ml-2">Prototipador v1.15 (Regra da Potência Geral)</span></h1>
+            </div>
+            <a href="https://www.npmjs.com/package/derivainteg" target="_blank" class="text-sm text-slate-300 hover:text-white transition flex items-center gap-1">
+                <i data-lucide="package" class="w-4 h-4"></i> Ver no NPM
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-4 py-8 max-w-4xl">
+        
+        <!-- Card de Entrada -->
+        <div class="bg-white rounded-xl shadow-md border border-slate-200 p-6 mb-8">
+            <div class="flex flex-col md:flex-row gap-6">
+                
+                <!-- Controles -->
+                <div class="w-full md:w-1/3 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Operação</label>
+                        <div class="flex bg-slate-100 p-1 rounded-lg">
+                            <button id="btnDerivar" class="flex-1 py-2 px-3 rounded-md text-sm font-medium transition bg-white text-blue-600 shadow-sm" onclick="setMode('derivar')">Derivar</button>
+                            <button id="btnIntegrar" class="flex-1 py-2 px-3 rounded-md text-sm font-medium text-slate-600 hover:text-slate-800 transition" onclick="setMode('integrar')">Integrar</button>
+                        </div>
+                    </div>
+
+                    <div id="notationControl">
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Notação (Derivada)</label>
+                        <select id="notationSelect" class="w-full border-slate-300 border rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white">
+                            <option value="lagrange">Lagrange (f')</option>
+                            <option value="leibniz">Leibniz (d/dx)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Input -->
+                <div class="w-full md:w-2/3 flex flex-col justify-between">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Expressão Matemática</label>
+                        <div class="relative">
+                            <input type="text" id="mathInput" 
+                                class="w-full border border-slate-300 rounded-lg pl-4 pr-12 py-3 text-lg font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition shadow-sm"
+                                placeholder="ex: sin(x)^2" value="sin(x)^2">
+                            <button onclick="clearInput()" class="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600">
+                                <i data-lucide="x" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-2">Suporta: +, -, *, /, ^, sin, cos, tan, ln, exp, sqrt</p>
+                    </div>
+                    
+                    <button onclick="calcular()" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2 shadow-md active:scale-95">
+                        <i data-lucide="calculator" class="w-5 h-5"></i>
+                        Calcular Resultado
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card de Resultados -->
+        <div id="resultArea" class="hidden space-y-6">
+            
+            <!-- Resultado Final -->
+            <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+                <div class="bg-slate-50 px-6 py-3 border-b border-slate-200 flex items-center gap-2">
+                    <i data-lucide="check-circle-2" class="w-5 h-5 text-green-600"></i>
+                    <h2 class="font-semibold text-slate-800">Resultado Final</h2>
+                </div>
+                <div class="p-8 text-center">
+                    <div id="finalResult" class="text-2xl md:text-3xl text-slate-900 font-serif overflow-x-auto py-2">
+                        <!-- KaTeX renderizado aqui -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Passos -->
+            <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+                <div class="bg-slate-50 px-6 py-3 border-b border-slate-200 flex items-center justify-between cursor-pointer" onclick="toggleSteps()">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="list-ordered" class="w-5 h-5 text-blue-600"></i>
+                        <h2 class="font-semibold text-slate-800">Passo a Passo</h2>
+                    </div>
+                    <i id="chevronSteps" data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i>
+                </div>
+                <div id="stepsContainer" class="p-6 bg-slate-50/50">
+                    <!-- HTML do StepsBuilder aqui -->
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 py-6 mt-auto">
+        <div class="container mx-auto px-4 text-center text-slate-500 text-sm">
+            &copy; 2025 Derivaintegra. Desenvolvido com JavaScript puro.
+        </div>
+    </footer>
+
+    <!-- BIBLIOTECA DERIVAINTEGRA (Injetada diretamente para funcionar no protótipo) -->
+    <script>
+        // ====================================================================
+        // CÓDIGO DA BIBLIOTECA DERIVAINTEGRA (Adaptado sem exports)
+        // ====================================================================
+
+        class StepsBuilder {
+            constructor() {
+                this.steps = [];
+                this.isIntegral = false; 
+            }
+            addStep(title, explanation, formula, calculo, isError = false) { 
+                this.steps.push({ title, explanation, formula, calculo, isError }); 
+            }
+            addNestedSteps(title, nestedBuilder) { this.steps.push({ title, nestedBuilder }); }
+            
+            printToConsole() {
+                console.log("%c=== INÍCIO DO CÁLCULO ===", "color: #3b82f6; font-weight: bold; font-size: 14px;");
+                this._printRecursive(this.steps, 0);
+                console.log("%c=== FIM DO CÁLCULO ===", "color: #3b82f6; font-weight: bold; font-size: 14px;");
+            }
+
+            _printRecursive(steps, level) {
+                const indent = "   ".repeat(level);
+                steps.forEach((step, index) => {
+                    const numbering = `${index + 1}.`;
+                    if (step.nestedBuilder) {
+                        console.log(`%c${indent}${numbering} [GRUPO] ${step.title}`, "font-weight: bold; color: #475569; margin-top: 5px;");
+                        step.nestedBuilder._printRecursive(step.nestedBuilder.steps, level + 1);
+                    } else {
+                        const errorStyle = step.isError ? "color: red; font-weight: bold;" : "color: #0f172a; font-weight: 600";
+                        console.groupCollapsed(`%c${indent}${numbering} ${step.title}`, errorStyle);
+                        if (step.explanation) console.log(`%cExplicação:`, "color: #64748b; font-weight: bold;", step.explanation);
+                        if (step.formula) console.log(`%cFórmula:`, "color: #059669; font-weight: bold;", step.formula);
+                        if (step.calculo) console.log(`%cCálculo:`, "color: #2563eb; font-weight: bold;", step.calculo);
+                        console.groupEnd();
+                    }
+                });
+            }
+
+            render() {
+                if (this.steps.length === 0) return "Nenhum passo gerado.";
+                const integralClass = this.isIntegral ? 'integral' : '';
+                return this.steps.map((step, index) => {
+                    const errorClass = step.isError ? 'error' : '';
+                    const borderClass = step.isError ? 'border-red-300 bg-red-50' : '';
+                    
+                    let html = `<div class="step ${borderClass}">`;
+                    html += `<div class="step-title ${integralClass} ${errorClass}">${index + 1}. ${step.title}</div>`;
+                    if (step.nestedBuilder) {
+                        html += `<div style="padding-left: 20px; border-left: 2px solid ${this.isIntegral ? '#059669' : '#3b82f6'}; margin-top: 10px;">`;
+                        html += step.nestedBuilder.render();
+                        html += `</div>`;
+                    } else {
+                        html += `<ul class="${integralClass}">`;
+                        if (step.explanation) html += `<li>${step.explanation}</li>`;
+                        if (step.formula) html += `<li><strong>Fórmula:</strong> <span class="step-math-block">$${step.formula}$</span></li>`;
+                        if (step.calculo) html += `<li><strong>Cálculo:</strong> <span class="step-math-block">$${step.calculo}$</span></li>`;
+                        html += `</ul>`;
+                    }
+                    html += `</div>`;
+                    return html;
+                }).join('');
+            }
+        }
+
+        function wrapIfNeeded(term) {
+            let parenCount = 0;
+            for (let i = 0; i < term.length; i++) {
+                if (term[i] === '(') parenCount++;
+                if (term[i] === ')') parenCount--;
+                if (parenCount === 0 && (term[i] === '+' || (term[i] === '-' && i > 0))) {
+                    return `(${term})`;
+                }
+            }
+            return term;
+        }
+
+        function toKaTeX(str) { 
+            if (!str) return "";
+            let katexStr = str.replace(/\s+/g, ' '); 
+            katexStr = katexStr.replace(/\b(sin|cos|tan|ln|sqrt)\(/g, "\\$1(");
+            katexStr = katexStr.replace(/exp\(([^)]+)\)/g, (match, content) => {
+                if (content.match(/^-?([\d\.]*x(\^[\d\.-]+)?|[\d\.]+)$/)) {
+                    return `e^{${content}}`;
+                }
+                return `e^{(${content})}`;
+            });
+            katexStr = katexStr.replace(/e\^\(([^)]+)\)/g, "e^{$1}");
+
+            // NOVA LÓGICA: Ocultar sinais de multiplicação (*)
+            // 1. Preservar apenas entre números (ex: 2 * 3 vira 2 \cdot 3)
+            katexStr = katexStr.replace(/(\d)\s*\*\s*(\d)/g, '$1 \\cdot $2');
+            
+            // 2. Substituir todos os outros * por espaço (multiplicação implícita)
+            katexStr = katexStr.replace(/\s*\*\s*/g, " "); 
+            
+            return katexStr;
+        }
+
+        // Função de Simplificação Aprimorada
+        function simplifyExpression(expr) {
+            let simplified = expr;
+            let lastExpr;
+            
+            // Loop de simplificação até estabilizar
+            do {
+                lastExpr = simplified;
+                
+                // 1. Remoção de Parenteses Redundantes: ((x)) -> (x)
+                simplified = simplified.replace(/\(\(([^()]+)\)\)/g, '($1)');
+                
+                // 2. Sinais Duplos e Normalização
+                // - - -> +
+                simplified = simplified.replace(/-\s*-\s*/g, '+ ');
+                // - (- -> + (
+                simplified = simplified.replace(/-\s*\(\s*-/g, '+ (');
+                // + - -> -
+                simplified = simplified.replace(/\+\s*-\s*/g, '- ');
+                // - + -> -
+                simplified = simplified.replace(/-\s*\+\s*/g, '- ');
+                
+                // 3. Multiplicação por 1 e 0
+                // x * 1 -> x
+                simplified = simplified.replace(/([^\d])\s*\*\s*1(?!\d)/g, '$1');
+                simplified = simplified.replace(/(^|[\s+\-(])1\s*\*\s*/g, '$1');
+                // x * 0 -> 0
+                simplified = simplified.replace(/([^\s()]*|\([^)]+\))\s*\*\s*0(?!\.)/g, '0');
+                simplified = simplified.replace(/0\s*\*\s*([^\s()]*|\([^)]+\))/g, '0');
+                
+                // 4. Adição de 0
+                simplified = simplified.replace(/\+\s*0(?!\.)/g, '');
+                simplified = simplified.replace(/^0\s*\+/g, '');
+                
+                // 5. Unir constantes soltas com variáveis (ex: x * 2 -> 2x)
+                // Regex simples para mover número para frente de letra
+                simplified = simplified.replace(/([a-z][a-z0-9]*)\s*\*\s*(\d+)/gi, '$2$1');
+                
+                // 6. Limpeza de espaços
+                simplified = simplified.replace(/\s+/g, ' ').trim();
+                
+                // 7. Remover * antes de parênteses se for comum (ex: 2 * (x) -> 2(x) ou 2x)
+                // simplified = simplified.replace(/(\d)\s*\*\s*\(/g, '$1('); // Opcional, as vezes * é bom para clareza
+                
+            } while (simplified !== lastExpr);
+            
+            // Remover parenteses externos se envolverem tudo
+            if (simplified.startsWith('(') && simplified.endsWith(')')) {
+                let parenCount = 0; let valid = true;
+                for (let i = 0; i < simplified.length - 1; i++) { 
+                    if (simplified[i] === '(') parenCount++; 
+                    if (simplified[i] === ')') parenCount--; 
+                    if (parenCount === 0) { valid = false; break; } 
+                }
+                if (valid) { simplified = simplified.substring(1, simplified.length - 1); }
+            }
+            
+            return simplified;
+        }
+
+        // Helper para separar termos de nível superior
+        function splitTopLevel(str) {
+            let parts = [];
+            let depth = 0;
+            let current = "";
+            for (let i = 0; i < str.length; i++) {
+                let char = str[i];
+                if (char === '(') depth++;
+                if (char === ')') depth--;
+                
+                if (depth === 0 && (char === '+' || char === '-')) {
+                    if (current.trim()) parts.push(current.trim());
+                    parts.push(char); // manter operador
+                    current = "";
+                } else {
+                    current += char;
+                }
+            }
+            if (current.trim()) parts.push(current.trim());
+            return parts;
+        }
+
+        // Função para Distribuir Constantes: 2 * (A + B) -> 2A + 2B
+        function distribuirProduto(coef, expr) {
+            // Remove parenteses externos da expressão se houver
+            let inner = expr.trim();
+            if (inner.startsWith('(') && inner.endsWith(')')) {
+                // Verificação rápida de paridade
+                let depth = 0, ok = true;
+                for(let i=0; i<inner.length-1; i++) {
+                    if(inner[i]=='(') depth++; if(inner[i]==')') depth--;
+                    if(depth==0) { ok=false; break; }
+                }
+                if(ok) inner = inner.substring(1, inner.length-1);
+            }
+
+            let parts = splitTopLevel(inner);
+            let result = "";
+            
+            // Se não houver soma/subtração (apenas 1 termo), apenas multiplica
+            if (parts.length === 1) {
+                 return `${coef} * ${parts[0]}`;
+            }
+
+            // Distribuir
+            for (let i = 0; i < parts.length; i++) {
+                let p = parts[i];
+                if (p === '+' || p === '-') {
+                    result += ` ${p} `;
+                } else {
+                    // Se o termo já começa com número, multiplicar os números?
+                    // Simplificação leve: apenas concatenar para o 'simplifyExpression' resolver depois ou deixar explicito
+                    // Ex: 2 * (x) -> 2x. 2 * (3x) -> 2*3x
+                    result += `${coef} * ${p}`;
+                }
+            }
+            return result;
+        }
+
+        function extrairCoeficiente(termo) {
+            let t = termo.replace(/\s+/g, '');
+            if (t.startsWith('(') && t.endsWith(')')) t = t.substring(1, t.length-1);
+            
+            let coef = 1;
+            let resto = t;
+            const matchNum = t.match(/^(-?[\d\.]+)(\*)?/);
+            if (matchNum) {
+                coef = parseFloat(matchNum[1]);
+                resto = t.substring(matchNum[0].length);
+                if (resto === '') resto = '1';
+            } else if (t.startsWith('-')) {
+                coef = -1;
+                resto = t.substring(1);
+            }
+            return { coef, resto };
+        }
+
+        // --- BLOCO 2: Motor de Derivação ---
+        function derivar(expr, notation) {
+            const stepsBuilder = new StepsBuilder();
+            let d_final = "";
+            let expr_str_limpa = expr.replace(/\s+/g, '');
+            if (!expr_str_limpa) return { derivadaStr: "0", stepsBuilder };
+            const result = derivarExpressao(expr_str_limpa, stepsBuilder, notation);
+            stepsBuilder.addStep("União dos Resultados", "Juntando todos os resultados parciais...", `f'(x) = ${result.derivadaStr}`, null);
+            d_final = simplifyExpression(result.derivadaStr);
+            return { derivadaStr: d_final, stepsBuilder: stepsBuilder };
+        }
+
+        function derivarExpressao(expr, parentSteps, notation) {
+            let d_final = "";
+            let termos = []; let operadores = []; let parenCount = 0; let start = 0;
+            for (let i = 0; i < expr.length; i++) {
+                const char = expr[i]; if (char === '(') parenCount++; if (char === ')') parenCount--;
+                if (parenCount === 0 && (char === '+' || char === '-')) {
+                    if (i > 0 || (char === '+' && start === 0)) { 
+                        if (i > 0) { termos.push(expr.substring(start, i)); operadores.push(char); }
+                        start = i + 1; 
+                    }
+                }
+            }
+            termos.push(expr.substring(start));
+            if (termos.length === 1 && operadores.length === 0) return derivarTermo(expr, parentSteps, notation);
+            
+            let formula, calculo;
+            if (notation === 'leibniz') { formula = `\\frac{d}{dx}(u \u00B1 v) = \\frac{d}{dx}(u) \u00B1 \\frac{d}{dx}(v)`; calculo = `\\text{Aplicando a } \\frac{d}{dx}(${toKaTeX(expr)})`; }
+            else { formula = `(u \u00B1 v)' = u' \u00B1 v'`; calculo = `\\text{Aplicando a } (${toKaTeX(expr)})'`; }
+            parentSteps.addStep( "Regra da Soma/Subtração", "A derivada de uma soma/subtração é a soma/subtração das derivadas.", formula, calculo);
+            
+            let derivadasTermos = [];
+            for (let i = 0; i < termos.length; i++) {
+                const termo = termos[i]; if(termo === "") continue;
+                const nestedSteps = new StepsBuilder(); nestedSteps.isIntegral = parentSteps.isIntegral;
+                const result = derivarTermo(termo, nestedSteps, notation);
+                derivadasTermos.push(result.derivadaStr);
+                const title = (notation === 'leibniz') ? `Derivando $\\frac{d}{dx}(${toKaTeX(termo)})$:` : `Derivando $(${toKaTeX(termo)})'$:`;
+                parentSteps.addNestedSteps(title, result.stepsBuilder);
+            }
+            d_final = derivadasTermos[0] || "";
+            for (let i = 0; i < operadores.length; i++) { if(derivadasTermos[i+1]) { d_final += ` ${operadores[i]} ${derivadasTermos[i + 1]}`; } }
+            return { derivadaStr: d_final, stepsBuilder: parentSteps };
+        }
+        
+        function derivarTermo(expr, parentSteps, notation) {
+            let parenCount = 0;
+            for (let i = expr.length - 1; i >= 0; i--) {
+                const char = expr[i]; if (char === ')') parenCount++; if (char === '(') parenCount--;
+                if (parenCount === 0 && (char === '*' || char === '/' || char === '.')) {
+                    const u = expr.substring(0, i); const v = expr.substring(i + 1); const op = char;
+                    if(!u || !v) continue;
+                    const u_nested_steps = new StepsBuilder(); u_nested_steps.isIntegral = parentSteps.isIntegral;
+                    const v_nested_steps = new StepsBuilder(); v_nested_steps.isIntegral = parentSteps.isIntegral;
+                    const u_result = derivarFator(u, u_nested_steps, notation);
+                    const v_result = derivarFator(v, v_nested_steps, notation);
+                    const du_str = u_result.derivadaStr; const dv_str = v_result.derivadaStr;
+                    const u_wrapped = wrapIfNeeded(u); const v_wrapped = wrapIfNeeded(toKaTeX(v));
+                    const du_wrapped = wrapIfNeeded(du_str); const dv_wrapped = wrapIfNeeded(dv_str);
+                    let d_final = ''; let formula = ''; let calculo = ''; let u_deriv_str, v_deriv_str;
+                    if (op === '*' || op === '.') {
+                        d_final = `(${du_wrapped} * ${v_wrapped} + ${u_wrapped} * ${dv_wrapped})`;
+                        if (notation === 'leibniz') { formula = `\\frac{d}{dx}(u \\cdot v) = \\frac{d}{dx}(u)v + u\\frac{d}{dx}(v)`; u_deriv_str = `... = ${du_str}`; v_deriv_str = `... = ${dv_str}`; }
+                        else { formula = `(u \\cdot v)' = u'v + uv'`; u_deriv_str = `u' = ${du_str}`; v_deriv_str = `v' = ${dv_str}`; }
+                        calculo = `u = ${u}, v = ${v} \\\\ ${u_deriv_str}, ${v_deriv_str} \\\\ \\text{Res} = ${du_wrapped} \\cdot ${v_wrapped} + ${u_wrapped} \\cdot ${dv_wrapped}`;
+                        parentSteps.addStep("Regra do Produto", "Aplicando a regra do produto.", formula, calculo);
+                    } else {
+                        d_final = `((${du_wrapped} * ${v_wrapped} - ${u_wrapped} * ${dv_wrapped}) / (${v_wrapped})^2)`;
+                        if (notation === 'leibniz') { formula = `\\frac{d}{dx}(\\frac{u}{v}) = \\frac{\\frac{d}{dx}(u)v - u\\frac{d}{dx}(v)}{v^2}`; u_deriv_str = `... = ${du_str}`; v_deriv_str = `... = ${dv_str}`; }
+                        else { formula = `(\\frac{u}{v})' = \\frac{u'v - uv'}{v^2}`; u_deriv_str = `u' = ${du_str}`; v_deriv_str = `v' = ${dv_str}`; }
+                        calculo = `u = ${u}, v = ${v} \\\\ ${u_deriv_str}, ${v_deriv_str} \\\\ \\text{Res} = \\frac{${du_wrapped} \\cdot ${v_wrapped} - ${u_wrapped} \\cdot ${dv_wrapped}}{(${v_wrapped})^2}`;
+                        parentSteps.addStep("Regra do Quociente", "Aplicando a regra do quociente.", formula, calculo);
+                    }
+                    const title_u = (notation === 'leibniz') ? `Cálculo de $\\frac{d}{dx}(${toKaTeX(u)})$:` : `Cálculo de $u'$:`;
+                    const title_v = (notation === 'leibniz') ? `Cálculo de $\\frac{d}{dx}(${toKaTeX(v)})$:` : `Cálculo de $v'$:`;
+                    parentSteps.addNestedSteps(title_u, u_result.stepsBuilder);
+                    parentSteps.addNestedSteps(title_v, v_result.stepsBuilder);
+                    return { derivadaStr: d_final, stepsBuilder: parentSteps };
+                }
+            }
+            return derivarFator(expr, parentSteps, notation);
+        }
+
+        function derivarFator(expr, parentSteps, notation) {
+            if (!isNaN(parseFloat(expr)) && isFinite(expr) && !expr.toLowerCase().includes('x')) { 
+                parentSteps.addStep("Regra da Constante", "A derivada de uma constante (c) é 0.", `(c)' = 0`, `(${expr})' = 0`); 
+                return { derivadaStr: "0", stepsBuilder: parentSteps }; 
+            }
+            if (expr === 'x') { 
+                parentSteps.addStep("Regra da Variável", "A derivada de x (em relação a x) é 1.", `(x)' = 1`, `(${expr})' = 1`); 
+                return { derivadaStr: "1", stepsBuilder: parentSteps }; 
+            }
+            let match = expr.match(/^(-?[\d\.]*)x(\^([\d\.-]+))?$/);
+            if (match) {
+                let a = match[1]; let n = match[3]; if (a === "") a = "1"; if (a === "-") a = "-1"; if (n === undefined) n = "1";
+                const a_val = parseFloat(a); const n_val = parseFloat(n);
+                const novo_a = a_val * n_val; const novo_n = n_val - 1;
+                let d_final = "";
+                if (novo_a === 0) { d_final = "0"; }
+                else if (novo_n === 0) { d_final = `${novo_a}`; }
+                else if (novo_n === 1) { d_final = `${novo_a === 1 ? '' : (novo_a === -1 ? '-' : novo_a)}x`; }
+                else { d_final = `${novo_a === 1 ? '' : (novo_a === -1 ? '-' : novo_a)}x^${novo_n}`; }
+                parentSteps.addStep("Regra da Potência", "Aplicando a regra (ax^n)' = anx^{n-1}.", `(ax^n)' = anx^{n-1}`, `a=${a_val}, n=${n_val} \\\\ ${a_val} \\cdot ${n_val}x^{${n_val}-1} = ${d_final}`);
+                return { derivadaStr: d_final, stepsBuilder: parentSteps };
+            }
+            if (expr.startsWith('(') && expr.endsWith(')')) {
+                let parenCount = 0; let valid = true;
+                for (let i = 0; i < expr.length -1; i++) { if (expr[i] === '(') parenCount++; if (expr[i] === ')') parenCount--; if (parenCount === 0) { valid = false; break; } }
+                if (parenCount !== 1) valid = false;
+                if (valid) {
+                    const innerExpr = expr.substring(1, expr.length - 1);
+                    const nestedSteps = new StepsBuilder(); nestedSteps.isIntegral = parentSteps.isIntegral;
+                    const innerResult = derivarExpressao(innerExpr, nestedSteps, notation);
+                    parentSteps.addStep("Regra dos Parênteses", "A derivada de (f(x)) é a derivada do conteúdo interno.", "", `Derivando ${innerExpr}`);
+                    parentSteps.addNestedSteps("Passos internos:", innerResult.stepsBuilder);
+                    return { derivadaStr: `(${innerResult.derivadaStr})`, stepsBuilder: parentSteps };
+                }
+            }
+
+            // --- NOVA REGRA DE CADEIA PARA POTÊNCIAS (u^n) ---
+            // Detecta coisas como sin(x)^2 ou (x+1)^2 que não cairam no ax^n
+            match = expr.match(/^(.+)\^([\d\.-]+)$/);
+            if (match) {
+                const u = match[1];
+                const n = parseFloat(match[2]);
+                
+                // Validar u simples (verificar balanceamento de parênteses)
+                let parenCount = 0;
+                let unbalanced = false;
+                for(let char of u) {
+                    if(char === '(') parenCount++;
+                    if(char === ')') parenCount--;
+                    if(parenCount < 0) { unbalanced = true; break; }
+                }
+                if(!unbalanced && parenCount === 0) {
+                    const nestedSteps = new StepsBuilder();
+                    // Tentamos derivar a base u
+                    const uResult = derivarFator(u, nestedSteps, notation);
+                    
+                    if (!uResult.derivadaStr.startsWith('[Erro')) {
+                        const novo_n = n - 1;
+                        let u_pow_str = "";
+                        const u_latex = toKaTeX(u);
+                        const du_latex = toKaTeX(uResult.derivadaStr);
+                        
+                        if (novo_n === 1) u_pow_str = wrapIfNeeded(u);
+                        else if (novo_n === 0) u_pow_str = "1";
+                        else u_pow_str = `(${u})^${novo_n}`;
+                        
+                        let d_final = `${n} * ${u_pow_str} * (${uResult.derivadaStr})`;
+                        
+                        parentSteps.addStep(
+                            "Regra da Cadeia (Potência)", 
+                            "Aplicando $(u^n)' = n \\cdot u^{n-1} \\cdot u'$", 
+                            `u = ${u_latex}, \\quad n = ${n}`, 
+                            `f' = ${n} \\cdot (${u_latex})^{${novo_n}} \\cdot (${du_latex})`
+                        );
+                        parentSteps.addNestedSteps(`Derivada da base $u$:`, uResult.stepsBuilder);
+                        return { derivadaStr: d_final, stepsBuilder: parentSteps };
+                    }
+                }
+            }
+
+            match = expr.match(/^(sin|cos|tan|ln|exp|sqrt)\((.+)\)$/);
+            if (match) {
+                const func = match[1]; const innerExpr = match[2];
+                let parenCount = 0;
+                for(let char of innerExpr) { if (char === '(') parenCount++; if (char === ')') parenCount--; }
+                if (parenCount !== 0) {
+                    parentSteps.addStep("Erro", `Parênteses desbalanceados em: ${expr}`, "", "", true);
+                    return { derivadaStr: `[Erro em '${expr}']`, stepsBuilder: parentSteps };
+                }
+                const nestedSteps = new StepsBuilder(); nestedSteps.isIntegral = parentSteps.isIntegral;
+                const innerResult = derivarExpressao(innerExpr, nestedSteps, notation); const inner_d_str = innerResult.derivadaStr;
+                let d_func_u = ""; let d_final = ""; let formula = "";
+                switch (func) {
+                    case 'sin': d_func_u = `\\cos(${toKaTeX(innerExpr)})`; formula = `(\\sin(u))' = \\cos(u) \\cdot u'`; break;
+                    case 'cos': d_func_u = `-\\sin(${toKaTeX(innerExpr)})`; formula = `(\\cos(u))' = -\\sin(u) \\cdot u'`; break;
+                    case 'tan': d_func_u = `(1 / (\\cos(${toKaTeX(innerExpr)}))^2)`; formula = `(\\tan(u))' = \\sec^2(u) \\cdot u'`; break;
+                    case 'ln': d_func_u = `(1 / (${toKaTeX(innerExpr)}))`; formula = `(\\ln(u))' = \\frac{1}{u} \\cdot u'`; break;
+                    case 'exp': d_func_u = `exp(${toKaTeX(innerExpr)})`; formula = `(e^u)' = e^u \\cdot u'`; break;
+                    case 'sqrt': d_func_u = `(1 / (2 * \\sqrt(${toKaTeX(innerExpr)})))`; formula = `(\\sqrt(u))' = \\frac{1}{2\\sqrt{u}} \\cdot u'`; break;
+                }
+                d_final = `${d_func_u}`;
+                if (innerExpr !== 'x' && inner_d_str !== '1') { d_final += ` * (${inner_d_str})`; }
+                parentSteps.addStep(`Regra da Cadeia (${func})`, `u = ${toKaTeX(innerExpr)}`, formula, `Res = ${d_final}`);
+                parentSteps.addNestedSteps(`Cálculo de $u'$:`, innerResult.stepsBuilder);
+                return { derivadaStr: d_final, stepsBuilder: parentSteps };
+            }
+            parentSteps.addStep("Erro", `Termo não reconhecido: ${expr}`, "", "", true);
+            return { derivadaStr: `[Erro: ${expr}]`, stepsBuilder: parentSteps };
+        }
+
+        // --- MOTOR DE INTEGRAÇÃO ---
+
+        function integrar(expr) {
+            let exprLimpa = expr.replace(/\s+/g, '');
+            let termos = []; let operadores = ['+']; let parenCount = 0; let start = 0;
+            for (let i = 0; i < exprLimpa.length; i++) {
+                const char = exprLimpa[i]; if (char === '(') parenCount++; if (char === ')') parenCount--;
+                if (parenCount === 0 && (char === '+' || char === '-')) {
+                    if (i > 0) { termos.push(exprLimpa.substring(start, i)); operadores.push(char); start = i + 1; } else if (char === '-' && i === 0) { start = 1; operadores[0] = '-'; }
+                }
+            }
+            termos.push(exprLimpa.substring(start));
+            const mainStepsBuilder = new StepsBuilder();
+            mainStepsBuilder.isIntegral = true;
+            let finalIntegralTerms = []; 
+            mainStepsBuilder.addStep( 
+                "Regra da Soma (Integração)", 
+                "A integral da soma é a soma das integrais de cada termo.", 
+                "\\int (f(x) + g(x)) dx = \\int f(x) dx + \\int g(x) dx", 
+                `\\text{Separando a expressão: } \\int ${toKaTeX(expr)} dx` 
+            );
+            for (let i = 0; i< termos.length; i++) {
+                let termo = termos[i]; if (!termo) continue;
+                let sinal = operadores[i]; let termoOriginal = (sinal === '+' ? (i>0 ? ' + ' : '') : ' - ') + termo;
+                if(sinal === '-') termo = '-' + termo;
+                let sinalOperador = (sinal === '-' ? ' - ' : ' + '); if (i === 0 && sinal === '+') sinalOperador = '';
+                const nestedSteps = new StepsBuilder(); nestedSteps.isIntegral = true;
+                const { integralStr: termoResultStr } = analisarEIntegrarTermo(termo, nestedSteps);
+                finalIntegralTerms.push(sinalOperador + termoResultStr); 
+                mainStepsBuilder.addNestedSteps( `Integrando o termo: $${toKaTeX(termoOriginal)} dx$`, nestedSteps );
+            }
+            let rawIntegralStr = finalIntegralTerms.join('').trim(); 
+            if (rawIntegralStr.startsWith(' + ')) rawIntegralStr = rawIntegralStr.substring(3);
+            let finalIntegralStr_raw = simplifyExpression(rawIntegralStr); 
+            return { integralStr: finalIntegralStr_raw, stepsBuilder: mainStepsBuilder };
+        }
+
+        function integrarTermoSimples(expr, variable = 'x', parentSteps = null) {
+            const addStep = (title, exp, f, c, isErr=false) => { if (parentSteps) { parentSteps.isIntegral = true; parentSteps.addStep(title, exp, f, c, isErr); } };
+            const v = variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            if (!isNaN(parseFloat(expr)) && isFinite(expr) && !expr.toLowerCase().includes(variable)) {
+                const c = expr; const i_final = (c === '0') ? '0' : `${c}${variable}`;
+                if(c === '0') { addStep("Integral de Zero", "A integral de 0 é 0.", `\\int 0 d${v} = 0`, ``); return { integralStr: '0' }; }
+                addStep("Regra da Constante (Int.)", "A integral de uma constante 'c' é 'cv'.", `\\int c d${v} = c${v}`, `\\int ${c} d${v} = ${i_final}`);
+                return { integralStr: i_final };
+            }
+            const potRegex = new RegExp(`^(-?[\\d\\.]*)${v}(\\^([\\d\\.-]+))?$`);
+            let match = expr.match(potRegex);
+            if (match) {
+                let a = match[1]; let n = match[3]; if (a === "") a = "1"; if (a === "-") a = "-1"; if (n === undefined) n = "1";
+                const a_val = parseFloat(a); const n_val = parseFloat(n);
+                if (n_val === -1) {
+                    const i_final = `${a_val === 1 ? '' : (a_val === -1 ? '-' : a_val)} \\cdot \\ln|${variable}|`;
+                    addStep("Regra do Logaritmo (Int.)", "A integral de a/v é a*ln|v|.", `\\int \\frac{a}{${v}} d${v} = a \\cdot \\ln|${v}|`, `\\int ${expr} d${v} = ${i_final}`);
+                    return { integralStr: i_final };
+                }
+                const novo_n = n_val + 1; const novo_a = (a_val / novo_n); let i_final = "";
+                if (Number.isInteger(novo_a) && novo_a !== 0) {
+                    let novo_a_str = novo_a; if (novo_a_str === 1 && novo_n !== 0) novo_a_str = ""; if (novo_a_str === -1 && novo_n !== 0) novo_a_str = "-";
+                    if (novo_n === 1) { i_final = `${novo_a_str}${variable}`; } else if (novo_n === 0) { i_final = `${novo_a_str}`; } else { i_final = `${novo_a_str}${variable}^${novo_n}`; }
+                } else {
+                    let num_str = (a_val === 1) ? "" : ( (a_val === -1) ? "-" : a_val );
+                    if (num_str === 0) { i_final = "0"; }
+                    else if (num_str === "") { 
+                        if (novo_n === 1) { i_final = `\\frac{${variable}}{${novo_n}}`; } else if (novo_n === 0) { i_final = `\\frac{1}{${novo_n}}`; } else { i_final = `\\frac{${variable}^${novo_n}}{${novo_n}}`; }
+                    } else { 
+                        if (novo_n === 1) { i_final = `\\frac{${num_str}}{${novo_n}}${variable}`; } else if (novo_n === 0) { i_final = `\\frac{${num_str}}{${novo_n}}`; } else { i_final = `\\frac{${num_str}}{${novo_n}}${variable}^${novo_n}`; }
+                    }
+                }
+                if(n_val === 0) { i_final = `${a_val}${variable}`; } if(a_val === 0) { i_final = "0"; }
+                addStep("Regra da Potência (Int.)", "Aplicando a regra da potência.", `\\int a${v}^n d${v} = a \\frac{${v}^{n+1}}{n+1}`, `\\int ${expr} d${v} = ${i_final}`);
+                return { integralStr: i_final };
+            }
+            const logRegex = new RegExp(`^(-?[\\d\\.]*)\\/${v}$`);
+            match = expr.match(logRegex);
+            if (match) {
+                 let a = match[1]; if (a === "") a = "1"; if (a === "-") a = "-1";
+                 const i_final = `${a === '1' ? '' : (a === '-1' ? '-' : a)} \\cdot \\ln|${variable}|`;
+                 addStep("Regra do Logaritmo (Int.)", "A integral de a/v é a*ln|v|.", `\\int \\frac{a}{${v}} d${v} = a \\ln|${v}|`, `\\int ${expr} d${v} = ${i_final}`);
+                 return { integralStr: i_final };
+            }
+            const potURegex = new RegExp(`^${v}(\\^([\\d\\.-]+))?$`);
+            match = expr.match(potURegex);
+             if (match) {
+                 let n = match[2]; if (n === undefined) n = "1"; const n_val = parseFloat(n);
+                 if(n_val === -1) {
+                     const i_final = `\\ln|${variable}|`;
+                     addStep("Regra do Logaritmo (Int.)", "A integral de 1/v é ln|v|.", `\\int \\frac{1}{${v}} d${v} = \\ln|${v}|`, `\\int ${expr} d${v} = ${i_final}`);
+                     return { integralStr: i_final };
+                 }
+                 const novo_n = n_val + 1; const i_final = `\\frac{${variable}^${novo_n}}{${novo_n}}`;
+                 addStep( "Regra da Potência (Int.)", "Aplicando a regra da potência para u.", `\\int ${v}^n d${v} = \\frac{${v}^{n+1}}{n+1}`, `\\int ${expr} d${v} = ${i_final}`);
+                 return { integralStr: i_final };
+             }
+            const funcRegex = new RegExp(`^\\\\?(sin|cos|exp)\\(${v}\\)$`); 
+            match = expr.match(funcRegex);
+            if (match) {
+                const func = match[1]; let i_final = ""; let formula = "";
+                switch (func) {
+                    case 'sin': i_final = `-\\cos(${variable})`; formula = `\\int \\sin(${v}) d${v} = -\\cos(${v})`; break;
+                    case 'cos': i_final = `\\sin(${variable})`; formula = `\\int \\cos(${v}) d${v} = \\sin(${v})`; break;
+                    case 'exp': i_final = `exp(${variable})`; formula = `\\int e^${v} d${v} = e^${v}`; break;
+                }
+                addStep(`Integral Imediata de ${func}(${v})`, "Esta é uma integral conhecida.", formula, `\\int ${expr} d${v} = ${i_final}`);
+                return { integralStr: i_final };
+            }
+            
+            if (expr.includes('*') || expr.includes('/')) {
+                const partsResult = tentarIntegrarPorPartes(expr, parentSteps);
+                if (partsResult) return partsResult;
+
+                addStep("Recurso Não Suportado", `O termo $${toKaTeX(expr)}$ parece requerer <strong>Integração por Partes</strong> complexa ou simplificação algébrica.`, "", "Esta versão suporta apenas integrais imediatas, substituição e integração por partes simples (polinômio x trig/exp).", true);
+                return { integralStr: `\\text{[Complexo: } ${toKaTeX(expr)} \\text{]}` };
+            }
+
+            addStep("Erro (Int.)", `Termo simples não reconhecido: ${expr}`, "", "", true);
+            return { integralStr: `[Erro em ${expr}]` };
+        }
+        
+        function tentarIntegrarPorPartes(expr, parentSteps) {
+            console.log("Tentando Integração por Partes em:", expr);
+
+            const parts = expr.split('*');
+            if (parts.length !== 2) return null;
+            
+            let u_cand = parts[0].trim();
+            let dv_cand_raw = parts[1].trim();
+            let u = "", dv_raw = "";
+
+            const isPoly = (s) => /^(-?[\d\.]*)x(\^[\d\.]+)?$/.test(s);
+            const isTrigExp = (s) => /^\\?(sin|cos|exp)\(x\)$/.test(s.replace(/\\/g, ''));
+
+            if (isPoly(u_cand) && isTrigExp(dv_cand_raw)) {
+                u = u_cand; dv_raw = dv_cand_raw;
+            } else if (isPoly(dv_cand_raw) && isTrigExp(u_cand)) {
+                u = dv_cand_raw; dv_raw = u_cand;
+            } else {
+                return null;
+            }
+            
+            parentSteps.addStep(
+                "Integração por Partes",
+                "Identificamos um produto de polinômio por função transcendente.",
+                "\\int u \\cdot dv = u \\cdot v - \\int v \\cdot du",
+                `\\text{Escolha (LIATE): } u = {${toKaTeX(u)}}, \\quad dv = {${toKaTeX(dv_raw)} dx}`
+            );
+
+            const du_res = derivar(u, 'leibniz');
+            const du = du_res.derivadaStr;
+            
+            const v_res = integrarTermoSimples(dv_raw.replace(/\\/g, ''), 'x', null);
+            const v = v_res.integralStr;
+            
+            const v_data = extrairCoeficiente(v);
+            const du_data = extrairCoeficiente(du);
+            
+            const coefTotal = v_data.coef * du_data.coef;
+            
+            let partsToJoin = [];
+            if (v_data.resto !== '1') partsToJoin.push(v_data.resto);
+            if (du_data.resto !== '1') partsToJoin.push(du_data.resto);
+            
+            let novaIntegralCore = partsToJoin.length > 0 ? partsToJoin.join(' * ') : '1';
+
+            let finalIntegralCore = novaIntegralCore;
+            if (finalIntegralCore.match(/^(\\?)(sin|cos|exp)\(x\) \* [\d\.]+x/)) {
+                let p = finalIntegralCore.split('*');
+                finalIntegralCore = `${p[1].trim()} * ${p[0].trim()}`;
+            }
+            
+            let sinalStr = "";
+            let coefAbs = Math.abs(coefTotal);
+            
+            if (coefTotal < 0) {
+                 sinalStr = " + ";
+                 if (Math.abs(coefTotal + 1) > 1e-9) sinalStr += `${coefAbs} * `;
+            } else {
+                 sinalStr = " - ";
+                 if (Math.abs(coefTotal - 1) > 1e-9) sinalStr += `${coefTotal} * `;
+            }
+            
+            parentSteps.addStep(
+                "Aplicação da Fórmula",
+                "Calculamos $du$ e $v$ e aplicamos a fórmula.",
+                `du = {(${toKaTeX(du)}) dx}, \\quad v = {${toKaTeX(v)}}`,
+                `\\text{Parcial} = {${toKaTeX(u)}} \\cdot ({${toKaTeX(v)}}) - \\int ({${toKaTeX(v)}}) \\cdot ({${toKaTeX(du)}}) dx`
+            );
+
+            const nestedSteps = new StepsBuilder();
+            nestedSteps.isIntegral = true;
+
+            let recursaoStr = "";
+            if (!finalIntegralCore.includes('*')) {
+                 const r = integrarTermoSimples(finalIntegralCore, 'x', nestedSteps);
+                 recursaoStr = r.integralStr;
+            } else {
+                 const r = analisarEIntegrarTermo(finalIntegralCore, nestedSteps);
+                 recursaoStr = r.integralStr;
+            }
+
+            parentSteps.addNestedSteps(`Resolvendo a integral restante: $\\int ${toKaTeX(finalIntegralCore)} dx$`, nestedSteps);
+            
+            let uv_final = "";
+            let u_clean = u.trim();
+            let v_clean = v.trim();
+            let globalSign = 1;
+            
+            if (u_clean.startsWith('-')) { globalSign *= -1; u_clean = u_clean.substring(1); }
+            if (v_clean.startsWith('-')) { globalSign *= -1; v_clean = v_clean.substring(1); }
+            
+            if (globalSign === -1) uv_final = `-${u_clean} * ${v_clean}`;
+            else uv_final = `${u_clean} * ${v_clean}`;
+
+            let recursao_final = recursaoStr;
+            
+            if (sinalStr.includes('*')) {
+                let matchSinal = sinalStr.match(/(\d+(?:\.\d+)?)/);
+                if (matchSinal) {
+                    let constVal = parseFloat(matchSinal[1]);
+                    if (sinalStr.trim().startsWith("-")) {
+                        constVal = -constVal;
+                    }
+
+                    let distributed = distribuirProduto(constVal, recursaoStr);
+                    
+                    if (distributed !== "" && !distributed.includes("undefined")) {
+                        recursao_final = distributed;
+                        sinalStr = ""; 
+                    } else {
+                         if (recursaoStr.includes('+') || recursaoStr.includes('-')) {
+                            if (!recursaoStr.startsWith('(')) recursao_final = `(${recursaoStr})`;
+                        }
+                    }
+                }
+            } else {
+                 if ((sinalStr.trim() === '-' || sinalStr.trim() === '+') && (recursaoStr.includes('+') || recursaoStr.includes('-'))) {
+                      if (!recursaoStr.startsWith('(')) recursao_final = `(${recursaoStr})`;
+                 }
+            }
+
+            let resultadoFinal = "";
+            if (sinalStr === "") {
+                if (!recursao_final.trim().startsWith("+") && !recursao_final.trim().startsWith("-")) {
+                     resultadoFinal = `${uv_final} + ${recursao_final}`;
+                } else {
+                     resultadoFinal = `${uv_final} ${recursao_final}`;
+                }
+            } else {
+                resultadoFinal = `${uv_final} ${sinalStr} ${recursao_final}`;
+            }
+            
+            resultadoFinal = simplifyExpression(resultadoFinal);
+
+            parentSteps.addStep(
+                "Conclusão da Integração por Partes",
+                "Combinando e simplificando.",
+                `\\text{Resultado} = {${toKaTeX(resultadoFinal)}}`
+            );
+
+            return { integralStr: resultadoFinal };
+        }
+        
+        function getParts(s) {
+            s = s.replace(/\s+/g, '').replace(/[()]/g, '');
+            if (s === "") return { k: 1, v: "" };
+            if (!isNaN(parseFloat(s)) && isFinite(s)) return { k: parseFloat(s), v: "" };
+            const partRegex = /^(-?[\d\.]+)?\*?([a-z].*)$/i; const match = s.match(partRegex);
+            if (match) {
+                let k_str = match[1]; let v_str = match[2]; let k = 1;
+                if (k_str === "-") k = -1; else if (k_str !== "" && k_str !== undefined) k = parseFloat(k_str);
+                return { k: k, v: v_str };
+            }
+            if (s.match(/^[a-z]/i)) { return { k: 1, v: s }; }
+            return { k: 1, v: s };
+        }
+
+        function analisarTermo(termo) {
+            let match; let analiseBase = null;
+            const funcRegex = /\\?(sin|cos|tan|ln|exp|sqrt)\(([^)]+)\)/i; 
+            const potRegex = /\(([^)]+)\)\^([\d\.]+)$/i; 
+            const expRegex = /(e|exp)\^?\(([^)]+)\)/i;
+            
+            let funcCompleta = ""; let funcMatch = termo.match(funcRegex); let potMatch = termo.match(potRegex); let expMatch = termo.match(expRegex);
+            if (expMatch) {
+                const funcInterna = expMatch[2]; if(funcInterna !== 'x') { analiseBase = { u: funcInterna, f_u: `e^u`, f_u_raw: `exp(u)` }; funcCompleta = expMatch[0]; }
+            } else if (funcMatch) {
+                 const funcExterna = funcMatch[1]; const funcInterna = funcMatch[2];
+                 if (funcInterna !== 'x') { analiseBase = { u: funcInterna, f_u: `${toKaTeX(funcExterna)}(u)`, f_u_raw: `${funcExterna}(u)` }; funcCompleta = funcMatch[0]; }
+            } else if (potMatch) {
+                 const funcInterna = potMatch[1]; const expoente = potMatch[2];
+                 if(funcInterna !== 'x') { analiseBase = { u: funcInterna, f_u: `u^${expoente}`, f_u_raw: `u^${expoente}` }; funcCompleta = potMatch[0]; }
+            }
+            if (!analiseBase) { return { tipo: 'simples', original: termo }; }
+            let otherPart = termo.replace(funcCompleta, "").replace("()", "").replace(/\*$/, "").replace(/^\*/, ""); 
+            if (otherPart === "") otherPart = "1";
+            const { derivadaStr, stepsBuilder } = derivar(analiseBase.u, 'leibniz');
+            return { tipo: 'composto', original: termo, u: analiseBase.u, f_u: analiseBase.f_u, f_u_raw: analiseBase.f_u_raw, otherPart: otherPart, du_str: derivadaStr, du_steps: stepsBuilder };
+        }
+
+        function analisarEIntegrarTermo(termo, parentSteps) {
+            const analise = analisarTermo(termo);
+            if (analise.tipo === 'simples') { const { integralStr } = integrarTermoSimples(termo, 'x', parentSteps); return { integralStr }; }
+            parentSteps.addStep( "Análise de Substituição (u-sub)", "Tentando aplicar a Regra da Substituição.", `f(g(x)) = ${toKaTeX(analise.original)}`, `Função Externa: $f(u) = ${analise.f_u}$ \\\\ Função Interna: $u = ${toKaTeX(analise.u)}$ \\\\ Parte Restante: $${toKaTeX(analise.otherPart) || '1'}$` );
+            parentSteps.addNestedSteps(`Cálculo da Derivada Interna ($du/dx$):`, analise.du_steps);
+            const du_parts = getParts(analise.du_str); const other_parts = getParts(analise.otherPart);
+            let matchType = 'Inválida'; let k_str = ""; let k = 1; let formulaFinal = ""; let u_integral_steps = null; 
+            if (du_parts.v === other_parts.v) { 
+                if (other_parts.k === 0) { if(du_parts.k === 0) { matchType = 'Perfeita'; k = 1; } else { matchType = 'Inválida'; } } else {
+                    k = du_parts.k / other_parts.k;
+                    if (Math.abs(k - 1) < 1e-9) { matchType = 'Perfeita'; k = 1; formulaFinal = `\\int ${analise.f_u} du`; } else {
+                        matchType = 'Constante'; let k_val = 1/k;
+                        if (Math.abs(k_val + 1) < 1e-9) { k_str = "-"; } else if (Math.abs(k_val - 1) > 1e-9) { k_str = (k_val === 0.5) ? "\\frac{1}{2}" : ( (k_val === 0.25) ? "\\frac{1}{4}" : `${parseFloat(k_val.toPrecision(4))}` ); if(k_val < 0) k_str = `(${k_str})`; }
+                        formulaFinal = `\\int ${k_str} ${analise.f_u} du`;
+                    }
+                }
+            }
+            if (matchType === 'Perfeita' || matchType === 'Constante') {
+                u_integral_steps = new StepsBuilder();
+                const { integralStr: u_integral_result } = integrarTermoSimples(analise.f_u_raw, 'u', u_integral_steps);
+                let k_final_str = ""; let k_step_str = "";  
+                if (matchType === 'Constante') {
+                    let k_val = (1/k);
+                    if (Math.abs(k_val + 1) < 1e-9) { k_final_str = "-"; k_step_str = "-"; } else if (Math.abs(k_val - 1) > 1e-9) { k_step_str = k_str; k_final_str = k_str + " \\cdot "; }
+                }
+                const final_result_str = `${k_final_str}(${u_integral_result.replace(/u/g, `(${analise.u})`)})`;
+                parentSteps.addNestedSteps( `Passos da Integração em $u$: $${formulaFinal}$`, u_integral_steps );
+                parentSteps.addStep( "Re-substituição", "Substituindo $u$ de volta para a expressão original.", `u = ${toKaTeX(analise.u)}`, `${k_step_str.length > 0 ? k_step_str + " \\cdot " : ""}(${u_integral_result}) \\Rightarrow ${final_result_str}` );
+                return { integralStr: final_result_str };
+            } else { 
+                 const partsResult = tentarIntegrarPorPartes(termo, parentSteps);
+                 if (partsResult) return partsResult;
+
+                 parentSteps.addStep( "Substituição Inválida", `$du/dx$ ($${analise.du_str}$) não corresponde à "parte restante" ($${toKaTeX(analise.otherPart)}$).`, "", "Não é possível aplicar a Regra da Substituição.", true);
+                 return { integralStr: `[Erro: ${termo}]` }; 
+            }
+        }
+
+        // ====================================================================
+        // LÓGICA DA INTERFACE (UI)
+        // ====================================================================
+
+        let currentMode = 'derivar';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            renderMathInElement(document.body);
+        });
+
+        function setMode(mode) {
+            currentMode = mode;
+            const btnDerivar = document.getElementById('btnDerivar');
+            const btnIntegrar = document.getElementById('btnIntegrar');
+            const notationControl = document.getElementById('notationControl');
+
+            if (mode === 'derivar') {
+                btnDerivar.classList.add('bg-white', 'text-blue-600', 'shadow-sm');
+                btnDerivar.classList.remove('text-slate-600');
+                btnIntegrar.classList.remove('bg-white', 'text-blue-600', 'shadow-sm');
+                btnIntegrar.classList.add('text-slate-600');
+                notationControl.classList.remove('hidden');
+            } else {
+                btnIntegrar.classList.add('bg-white', 'text-blue-600', 'shadow-sm');
+                btnIntegrar.classList.remove('text-slate-600');
+                btnDerivar.classList.remove('bg-white', 'text-blue-600', 'shadow-sm');
+                btnDerivar.classList.add('text-slate-600');
+                notationControl.classList.add('hidden');
+            }
+        }
+
+        function clearInput() {
+            document.getElementById('mathInput').value = '';
+            document.getElementById('mathInput').focus();
+        }
+
+        function toggleSteps() {
+            const container = document.getElementById('stepsContainer');
+            const chevron = document.getElementById('chevronSteps');
+            if (container.style.display === 'none') {
+                container.style.display = 'block';
+                chevron.style.transform = 'rotate(180deg)';
+            } else {
+                container.style.display = 'none';
+                chevron.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function calcular() {
+            const input = document.getElementById('mathInput').value;
+            const notation = document.getElementById('notationSelect').value;
+            
+            if (!input.trim()) {
+                alert("Por favor, insira uma expressão.");
+                return;
+            }
+
+            document.getElementById('resultArea').classList.remove('hidden');
+            const stepsContainer = document.getElementById('stepsContainer');
+            const finalResultDiv = document.getElementById('finalResult');
+
+            try {
+                let resultadoStr = "";
+                let stepsBuilder;
+
+                if (currentMode === 'derivar') {
+                    const res = derivar(input, notation);
+                    resultadoStr = toKaTeX(res.derivadaStr);
+                    stepsBuilder = res.stepsBuilder;
+                    const prefix = notation === 'leibniz' ? `\\frac{d}{dx}(${toKaTeX(input)}) = ` : `f'(x) = `;
+                    finalResultDiv.innerHTML = `$${prefix} ${resultadoStr}$`;
+
+                } else {
+                    const res = integrar(input);
+                    resultadoStr = toKaTeX(res.integralStr);
+                    stepsBuilder = res.stepsBuilder;
+                    finalResultDiv.innerHTML = `$\\int (${toKaTeX(input)}) dx = ${resultadoStr} + C$`;
+                }
+
+                stepsContainer.innerHTML = stepsBuilder.render();
+                
+                renderMathInElement(document.getElementById('resultArea'), {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ],
+                    throwOnError: false
+                });
+                
+                stepsBuilder.printToConsole();
+                lucide.createIcons();
+
+            } catch (e) {
+                console.error(e);
+                finalResultDiv.innerHTML = `<span class="text-red-500">Erro ao calcular: ${e.message}</span>`;
+                stepsContainer.innerHTML = "";
+            }
+        }
+    </script>
+</body>
+</html>
